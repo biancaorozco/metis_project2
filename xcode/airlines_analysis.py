@@ -7,20 +7,11 @@ import pandas as pd
 import numpy as np 
 import seaborn as sns 
 import matplotlib.pyplot as plt 
-import statsmodels.api as sm 
 
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import KFold
-from sklearn.model_selection import cross_val_score
-from sklearn.linear_model import Ridge 
-
-from sklearn.preprocessing import FunctionTransformer
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.pipeline import FeatureUnion
-from sklearn.pipeline import make_pipeline
-from sklearn_pandas import DataFrameMapper
+from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.model_selection import train_test_split, KFold, cross_val_score
+from sklearn.metrics import mean_absolute_error
+from sklearn.preprocessing import StandardScaler, PolynomialFeatures
 
 
 ############### Data ###############
@@ -113,6 +104,7 @@ aggreg
 
 ## Checking Distribution of Prices
 plt.hist(df['prices'])
+print(df['prices'].describe())
 
 ############### 1.Features ###############
 X = df.loc[:,['departure_time', 'arrival_time', 'airline', 'duration', 'number_stops', 'departure_airport', 'arrival_airport', 'date']]
@@ -120,7 +112,8 @@ y = df['prices']
 
 ## Prices are skewed left so take log to transform into a Gaussian Dist.
 log_y = np.log(y)
-plt.hist(log_y)
+plt.hist(log_y);
+print(log_y.head())
 
 ############### 2.Dummy Variables ###############
 ## Dummy Variables for Airlines, Departure Airport, Arrival Airport, and Date
@@ -138,7 +131,7 @@ X, X_test, y_log, y_test = train_test_split(X, log_y, test_size=.2, random_state
 X_train, X_val, y_train, y_val = train_test_split(X, log_y, test_size=.25, random_state=33)
 
 
-############### Scaling & Modeling ###############
+############### 4.Scaling & Modeling ###############
 # Model 1
 lm = LinearRegression()
 
@@ -163,7 +156,7 @@ X_test_poly = poly.transform(X_test.values)
 lm_poly = LinearRegression()
 
 
-############### Choose Model ###############
+############### 5.Choose Model ###############
 
 lm.fit(X_train, y_train)
 print(f'Linear Regression val R^2: {lm.score(X_val, y_val):.3f}')
@@ -174,12 +167,40 @@ print(f'Ridge Regression val R^2: {lm_reg.score(X_val_scaled, y_val):.3f}')
 lm_poly.fit(X_train_poly, y_train)
 print(f'Degree 2 polynomial regression val R^2: {lm_poly.score(X_val_poly, y_val):.3f}')
 
+## Choosing Linear Regression Model
+
 
 ############### Test ###############
 lm.fit(X,log_y)
 print(f'Linear Regression test R^2: {lm.score(X_test, y_test):.3f}')
+
+
+############### Predict ###############
 pred_train = lm.predict(X_train)
 pred_test = lm.predict(X_test)
+
+
+############### Mean Absolute Error ###############
+## Create Predicted y and Actual y Series with equal shape
+y_pred = pd.DataFrame(np.exp(pred_test))
+print(y_pred.shape)
+
+yy_actual = pd.DataFrame(y.sample(613, random_state=100))
+print(y_actual.shape)
+
+mean_absolute_error(y_actual, y_pred)
+# On average, my model was off by approximately $
+
+## Remember from EDA of Prices
+# count    3064
+# mean     $390.92
+# std      $125.66
+# min        $88
+# 25%       $312
+# 50%       $379
+# 75%       $433
+# max      $1486
+
 
 ############### Actual vs Predicted ###############
 plt.scatter(pred_test, y_test, alpha=.2)
